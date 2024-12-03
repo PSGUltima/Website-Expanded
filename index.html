@@ -10,7 +10,7 @@
 <body>
     <h1>Seven:2one</h1>
     <p>This is my website to showcase my music and whatever gets added in the future</p>
-    <p>Here you can see two file inputs with the top one being able to add reverb and the bottom one, you're able to filter the song. Test it out, see how it feels.</p>
+    <p>Here you can see each song with two sliders for a filter and reverb for each track. Test it out, see how it feels.</p>
 
     <!-- Reverb Track Section -->
     <div>
@@ -38,176 +38,181 @@
 
     <script>
         // Audio context for reverb and filter
-        var context = new AudioContext();
+var context = new AudioContext();
 
-        // Reverb-related variables
-        var amplitudeReverb = new GainNode(context, { gain: 1 });  
-        var convolver = new ConvolverNode(context);
-        var dryGainReverb = new GainNode(context, { gain: 1 });
-        var wetGainReverb = new GainNode(context, { gain: 0 });
-        var sourceReverb = null;
-        var isPlayingReverb = false;
+// Reverb-related variables
+var amplitudeReverb = new GainNode(context, { gain: 1 });  
+var convolver = new ConvolverNode(context);
+var dryGainReverb = new GainNode(context, { gain: 1 });
+var wetGainReverb = new GainNode(context, { gain: 0 });
+var sourceReverb = null;
+var isPlayingReverb = false;
+var audioBufferReverb = null;  // Store the reverb audio buffer
 
-        // Filter-related variables
-        var amplitudeFilter = new GainNode(context, { gain: 1 });
-        var lowPassFilter = new BiquadFilterNode(context, { type: 'lowpass', frequency: 500 });
-        var highPassFilter = new BiquadFilterNode(context, { type: 'highpass', frequency: 1000 });
-        var currentFilter = lowPassFilter;
-        var dryGainFilter = new GainNode(context, { gain: 1 });
-        var wetGainFilter = new GainNode(context, { gain: 0 });
-        var sourceFilter = null;
-        var isPlayingFilter = false;
+// Filter-related variables
+var amplitudeFilter = new GainNode(context, { gain: 1 });
+var lowPassFilter = new BiquadFilterNode(context, { type: 'lowpass', frequency: 500 });
+var highPassFilter = new BiquadFilterNode(context, { type: 'highpass', frequency: 1000 });
+var currentFilter = lowPassFilter;
+var dryGainFilter = new GainNode(context, { gain: 1 });
+var wetGainFilter = new GainNode(context, { gain: 0 });
+var sourceFilter = null;
+var isPlayingFilter = false;
+var audioBufferFilter = null;  // Store the filter audio buffer
 
-        // Load and play audio for reverb
-        function loadAudioFileReverb(file) {
-            var reader = new FileReader();
-            reader.onload = function (e) {
-                context.decodeAudioData(e.target.result, function (buffer) {
-                    if (sourceReverb) {
-                        sourceReverb.stop();
-                    }
-                    playAudioReverb(buffer);
-                });
-            };
-            reader.readAsArrayBuffer(file);
-        }
+// Load and play audio for reverb (only when Start button is clicked)
+function loadAudioFileReverb(file) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+        context.decodeAudioData(e.target.result, function (buffer) {
+            // Store the decoded audio buffer
+            audioBufferReverb = buffer;
+        });
+    };
+    reader.readAsArrayBuffer(file);
+}
 
-        // Play the audio continuously with reverb
-        function playAudioReverb(buffer) {
-            sourceReverb = context.createBufferSource();
-            sourceReverb.buffer = buffer;
-            sourceReverb.loop = true;
-            sourceReverb.connect(amplitudeReverb);
-            amplitudeReverb.connect(dryGainReverb);
-            dryGainReverb.connect(context.destination);
-            amplitudeReverb.connect(wetGainReverb);
-            wetGainReverb.connect(convolver);
-            convolver.connect(context.destination);
-            convolver.buffer = impulseResponse(3, 1);
-            sourceReverb.start();
-        }
+// Play the audio continuously with reverb
+function playAudioReverb() {
+    if (audioBufferReverb) {
+        sourceReverb = context.createBufferSource();
+        sourceReverb.buffer = audioBufferReverb;
+        sourceReverb.loop = true;
+        sourceReverb.connect(amplitudeReverb);
+        amplitudeReverb.connect(dryGainReverb);
+        dryGainReverb.connect(context.destination);
+        amplitudeReverb.connect(wetGainReverb);
+        wetGainReverb.connect(convolver);
+        convolver.connect(context.destination);
+        convolver.buffer = impulseResponse(3, 1);
+        sourceReverb.start();
+    }
+}
 
-        // Impulse Response for Reverb
-        function impulseResponse(duration, decay) {
-            var length = context.sampleRate * duration;
-            var impulse = context.createBuffer(2, length, context.sampleRate);
-            var IR = impulse.getChannelData(0);
-            for (var i = 0; i < length; i++) {
-                IR[i] = (2 * Math.random() - 1) * Math.pow(1 - i / length, decay);
-            }
-            return impulse;
-        }
+// Impulse Response for Reverb
+function impulseResponse(duration, decay) {
+    var length = context.sampleRate * duration;
+    var impulse = context.createBuffer(2, length, context.sampleRate);
+    var IR = impulse.getChannelData(0);
+    for (var i = 0; i < length; i++) {
+        IR[i] = (2 * Math.random() - 1) * Math.pow(1 - i / length, decay);
+    }
+    return impulse;
+}
 
-        // When the file input for reverb changes, load the audio file
-        document.getElementById('audioFileReverb').addEventListener('change', function (event) {
-            var file = event.target.files[0];
-            if (file) {
-                loadAudioFileReverb(file);
+// When the file input for reverb changes, load the audio file
+document.getElementById('audioFileReverb').addEventListener('change', function (event) {
+    var file = event.target.files[0];
+    if (file) {
+        loadAudioFileReverb(file);
+    }
+});
+
+// Start/Stop button for reverb audio playback
+document.getElementById('StartStopReverb').onclick = function () {
+    if (!isPlayingReverb) {
+        context.resume().then(function () {
+            isPlayingReverb = true;
+            // Play the audio only if the file has been loaded
+            if (audioBufferReverb) {
+                playAudioReverb();
             }
         });
+        this.innerHTML = "Stop";
+    } else {
+        sourceReverb.stop();
+        isPlayingReverb = false;
+        this.innerHTML = "Start";
+    }
+};
 
-        // Start/Stop button for reverb audio playback
-        document.getElementById('StartStopReverb').onclick = function () {
-            if (!isPlayingReverb) {
-                context.resume().then(function () {
-                    isPlayingReverb = true;
-                    if (sourceReverb && sourceReverb.buffer) {
-                        playAudioReverb(sourceReverb.buffer);
-                    }
-                });
-                this.innerHTML = "Stop";
-            } else {
-                sourceReverb.stop();
-                isPlayingReverb = false;
-                this.innerHTML = "Start";
-            }
-        };
+// Update reverb wet gain based on the fader value
+document.getElementById('reverbLevel').addEventListener('input', function () {
+    var reverbAmount = this.value;
+    wetGainReverb.gain.value = reverbAmount;
+    dryGainReverb.gain.value = 1 - reverbAmount;
+});
 
-        // Update reverb wet gain based on the fader value
-        document.getElementById('reverbLevel').addEventListener('input', function () {
-            var reverbAmount = this.value;
-            wetGainReverb.gain.value = reverbAmount;
-            dryGainReverb.gain.value = 1 - reverbAmount;
+// Load and play audio for filter (only when Start button is clicked)
+function loadAudioFileFilter(file) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+        context.decodeAudioData(e.target.result, function (buffer) {
+            // Store the decoded audio buffer
+            audioBufferFilter = buffer;
         });
+    };
+    reader.readAsArrayBuffer(file);
+}
 
-        // Load and play audio for filter
-        function loadAudioFileFilter(file) {
-            var reader = new FileReader();
-            reader.onload = function (e) {
-                context.decodeAudioData(e.target.result, function (buffer) {
-                    if (sourceFilter) {
-                        sourceFilter.stop();
-                    }
-                    playAudioFilter(buffer);
-                });
-            };
-            reader.readAsArrayBuffer(file);
-        }
+// Play the audio continuously with filter applied
+function playAudioFilter() {
+    if (audioBufferFilter) {
+        sourceFilter = context.createBufferSource();
+        sourceFilter.buffer = audioBufferFilter;
+        sourceFilter.loop = true;
+        sourceFilter.connect(amplitudeFilter);
+        amplitudeFilter.connect(dryGainFilter);
+        dryGainFilter.connect(context.destination);
+        amplitudeFilter.connect(wetGainFilter);
+        wetGainFilter.connect(currentFilter);
+        currentFilter.connect(context.destination);
+        sourceFilter.start();
+    }
+}
 
-        // Play the audio continuously with filter applied
-        function playAudioFilter(buffer) {
-            sourceFilter = context.createBufferSource();
-            sourceFilter.buffer = buffer;
-            sourceFilter.loop = true;
-            sourceFilter.connect(amplitudeFilter);
-            amplitudeFilter.connect(dryGainFilter);
-            dryGainFilter.connect(context.destination);
-            amplitudeFilter.connect(wetGainFilter);
-            wetGainFilter.connect(currentFilter);
-            currentFilter.connect(context.destination);
-            sourceFilter.start();
-        }
+// When the file input for filter changes, load the audio file
+document.getElementById('audioFileFilter').addEventListener('change', function (event) {
+    var file = event.target.files[0];
+    if (file) {
+        loadAudioFileFilter(file);
+    }
+});
 
-        // When the file input for filter changes, load the audio file
-        document.getElementById('audioFileFilter').addEventListener('change', function (event) {
-            var file = event.target.files[0];
-            if (file) {
-                loadAudioFileFilter(file);
+// Start/Stop button for filter audio playback
+document.getElementById('StartStopFilter').onclick = function () {
+    if (!isPlayingFilter) {
+        context.resume().then(function () {
+            isPlayingFilter = true;
+            // Play the audio only if the file has been loaded
+            if (audioBufferFilter) {
+                playAudioFilter();
             }
         });
+        this.innerHTML = "Stop";
+    } else {
+        sourceFilter.stop();
+        isPlayingFilter = false;
+        this.innerHTML = "Start";
+    }
+};
 
-        // Start/Stop button for filter audio playback
-        document.getElementById('StartStopFilter').onclick = function () {
-            if (!isPlayingFilter) {
-                context.resume().then(function () {
-                    isPlayingFilter = true;
-                    if (sourceFilter && sourceFilter.buffer) {
-                        playAudioFilter(sourceFilter.buffer);
-                    }
-                });
-                this.innerHTML = "Stop";
-            } else {
-                sourceFilter.stop();
-                isPlayingFilter = false;
-                this.innerHTML = "Start";
-            }
-        };
+// Update the filter frequency
+document.getElementById('filterFrequency').addEventListener('input', function () {
+    var frequency = this.value;
+    currentFilter.frequency.value = frequency;
+});
 
-        // Update the filter frequency
-        document.getElementById('filterFrequency').addEventListener('input', function () {
-            var frequency = this.value;
-            currentFilter.frequency.value = frequency;
-        });
+// Adjust the filter wet/dry mix
+document.getElementById('filterAmount').addEventListener('input', function () {
+    var filterAmount = this.value;
+    wetGainFilter.gain.value = filterAmount;
+});
 
-        // Adjust the filter wet/dry mix
-        document.getElementById('filterAmount').addEventListener('input', function () {
-            var filterAmount = this.value;
-            wetGainFilter.gain.value = filterAmount;
-        });
+// Toggle between low-pass and high-pass filters
+document.getElementById('toggleFilter').onclick = function () {
+    if (currentFilter === lowPassFilter) {
+        currentFilter = highPassFilter;
+        this.innerHTML = "Switch to Low-pass Filter";
+    } else {
+        currentFilter = lowPassFilter;
+        this.innerHTML = "Switch to High-pass Filter";
+    }
+    lowPassFilter.disconnect(wetGainFilter);
+    highPassFilter.disconnect(wetGainFilter);
+    currentFilter.connect(wetGainFilter);
+};
 
-        // Toggle between low-pass and high-pass filters
-        document.getElementById('toggleFilter').onclick = function () {
-            if (currentFilter === lowPassFilter) {
-                currentFilter = highPassFilter;
-                this.innerHTML = "Switch to Low-pass Filter";
-            } else {
-                currentFilter = lowPassFilter;
-                this.innerHTML = "Switch to High-pass Filter";
-            }
-            lowPassFilter.disconnect(wetGainFilter);
-            highPassFilter.disconnect(wetGainFilter);
-            currentFilter.connect(wetGainFilter);
-        };
     </script>
 
 <div class="track">
@@ -233,3 +238,4 @@
 </div>
 </body>
 </html>
+
